@@ -1,0 +1,34 @@
+task: detection
+
+num_classes: 3
+remap_mscoco_category: False
+
+train_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoXDetection
+    img_folder: /home/lizirui/project/flir_align_format1/train/thermal
+    img_folder_rgb: /home/lizirui/project/flir_align_format1/train/visible
+    ann_file: /home/lizirui/project/flir_align_format1/annotations/train_new.json
+    transforms:
+      type: Compose
+      ops: ~
+  shuffle: True
+  batch_size: 16
+  num_workers: 4
+  drop_last: True
+
+val_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoXDetection
+    img_folder: /home/lizirui/project/flir_align_format1/val/thermal
+    img_folder_rgb: /home/lizirui/project/flir_align_format1/val/visible
+    ann_file: /home/lizirui/project/flir_align_format1/annotations/val_new.json
+    transforms:
+      type: Compose
+      ops: ~
+  shuffle: False
+  batch_size: 4
+  num_workers: 4
+  drop_last: False

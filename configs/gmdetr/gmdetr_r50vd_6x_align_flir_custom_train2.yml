@@ -1,0 +1,17 @@
+__include__: [
+  '../dataset/flir_custom_train2.yml',
+  '../runtime.yml',
+  './include/dataloader_X.yml',
+  './include/optimizer.yml',
+  './include/rtdetr_r50vd_X.yml',
+]
+
+train_dataloader: 
+  batch_size: 6
+  num_workers: 6
+
+optimizer:
+  lr: 0.00005
+
+output_dir: /home/data4/lzr/MM-DETR-OUTPUT/torch_output_stage2
+epoches: 100
