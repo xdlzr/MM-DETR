@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+# MM-DETR
+
 ## Quick start
 
 <details>
@@ -52,6 +53,3 @@ python tools/train.py -c configs/gmdetr/gmdetr_r101vd_6x_align_flir_X_train2.yml
 ```
 
 </details>
-=======
-# MM-DETR
->>>>>>> b38db86885afce174363668cc686e99374dd209a
