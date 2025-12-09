@@ -13,5 +13,13 @@ train_dataloader:
 optimizer:
   lr: 0.00005
 
-output_dir: /home/data4/lzr/MM-DETR-OUTPUT/torch_output_stage2
+output_dir: /home/data4/lzr/MM-DETR-OUTPUT-MALLOSS/output_stage2 # /home/data4/lzr/MM-DETR-OUTPUT/torch_output_stage2
 epoches: 100
+
+# stage2 使用 MAL 分类损失，如果使用VFL，改两个地方mal->vfl即可，True->False
+SetCriterion:
+  weight_dict: {loss_mal: 1, loss_bbox: 5, loss_giou: 2}
+  losses: ['mal', 'boxes']
+  use_mal: True #True 表示使用 MAL 分类损失
+  mal_alpha: null
+  mal_gamma: 1.5

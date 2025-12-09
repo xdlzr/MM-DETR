@@ -2,7 +2,7 @@
 reference: 
 https://github.com/facebookresearch/detr/blob/main/models/detr.py
 
-by lyuwenyu
+
 """
 
 
@@ -29,7 +29,9 @@ class SetCriterion(nn.Module):
     __share__ = ['num_classes', ]
     __inject__ = ['matcher', ]
 
-    def __init__(self, matcher, weight_dict, losses, alpha=0.2, gamma=2.0, eos_coef=1e-4, num_classes=80):
+    def __init__(self, matcher, weight_dict, losses, alpha=0.2, gamma=2.0,
+                 eos_coef=1e-4, num_classes=80, use_mal=False, mal_alpha=None,
+                 mal_gamma=1.5):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
@@ -50,7 +52,12 @@ class SetCriterion(nn.Module):
 
         self.alpha = alpha
         self.gamma = gamma
+        self.use_mal = use_mal
+        self.mal_alpha = mal_alpha
+        self.mal_gamma = mal_gamma
 
+        if self.use_mal:
+            assert 'mal' in self.losses, 'Enable mal loss by listing it in losses.'
 
     def loss_labels(self, outputs, targets, indices, num_boxes, log=True):
         """Classification loss (NLL)
@@ -134,6 +141,43 @@ class SetCriterion(nn.Module):
         loss = F.binary_cross_entropy_with_logits(src_logits, target_score, weight=weight, reduction='none')
         loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
         return {'loss_vfl': loss}
+
+    def loss_labels_mal(self, outputs, targets, indices, num_boxes, log=True):
+        assert self.use_mal, 'Set use_mal=True when using MAL loss.'
+        assert 'pred_boxes' in outputs
+
+        idx = self._get_src_permutation_idx(indices)
+        src_boxes = outputs['pred_boxes'][idx] if len(idx[0]) > 0 else None
+        target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0) if len(idx[0]) > 0 else None
+        if src_boxes is not None and target_boxes.numel() > 0:
+            ious, _ = box_iou(box_cxcywh_to_xyxy(src_boxes), box_cxcywh_to_xyxy(target_boxes))
+            ious = torch.diag(ious).detach()
+        else:
+            ious = torch.zeros((0,), device=outputs['pred_logits'].device)
+
+        src_logits = outputs['pred_logits']
+        target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
+                                    dtype=torch.int64, device=src_logits.device)
+        if len(idx[0]) > 0:
+            target_classes[idx] = target_classes_o
+
+        target = F.one_hot(target_classes, num_classes=self.num_classes + 1)[..., :-1]
+        target_score_o = torch.zeros_like(target_classes, dtype=src_logits.dtype)
+        if len(idx[0]) > 0 and len(ious) > 0:
+            target_score_o[idx] = ious.to(src_logits.dtype)
+        target_score = target_score_o.unsqueeze(-1) * target
+        target_score = torch.pow(target_score, self.mal_gamma)
+
+        pred_score = torch.sigmoid(src_logits).detach()
+        neg_term = torch.pow(pred_score, self.mal_gamma) * (1 - target)
+        if self.mal_alpha is not None:
+            neg_term = self.mal_alpha * neg_term
+        weight = neg_term + target
+
+        loss = F.binary_cross_entropy_with_logits(src_logits, target_score, weight=weight, reduction='none')
+        loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
+        return {'loss_mal': loss}
 
     @torch.no_grad()
     def loss_cardinality(self, outputs, targets, indices, num_boxes):
@@ -221,6 +265,7 @@ class SetCriterion(nn.Module):
             'bce': self.loss_labels_bce,
             'focal': self.loss_labels_focal,
             'vfl': self.loss_labels_vfl,
+            'mal': self.loss_labels_mal,
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
         return loss_map[loss](outputs, targets, indices, num_boxes, **kwargs)

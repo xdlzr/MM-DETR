@@ -1,5 +1,4 @@
-'''by lyuwenyu
-'''
+
 
 import copy
 import torch 
@@ -218,7 +217,7 @@ class HybridEncoder(nn.Module):
                 )
             )
 
-        # encoder transformer
+        # encoder transformer：高层自注意力
         encoder_layer = TransformerEncoderLayer(
             hidden_dim, 
             nhead=nhead,
@@ -230,7 +229,7 @@ class HybridEncoder(nn.Module):
             TransformerEncoder(copy.deepcopy(encoder_layer), num_encoder_layers) for _ in range(len(use_encoder_idx))
         ])
 
-        # top-down fpn
+        # top-down fpn：高层语义通过上采样传给低层
         self.lateral_convs = nn.ModuleList()
         self.fpn_blocks = nn.ModuleList()
         for _ in range(len(in_channels) - 1, 0, -1):
@@ -239,7 +238,7 @@ class HybridEncoder(nn.Module):
                 CSPRepLayer(hidden_dim * 2, hidden_dim, round(3 * depth_mult), act=act, expansion=expansion)
             )
 
-        # bottom-up pan
+        # bottom-up pan：从低层向上把精细细节一路传递到高层
         self.downsample_convs = nn.ModuleList()
         self.pan_blocks = nn.ModuleList()
         for _ in range(len(in_channels) - 1):

@@ -344,7 +344,7 @@ class RTDETRTransformer(nn.Module):
             self.tgt_embed = nn.Embedding(num_queries, hidden_dim)
         self.query_pos_head = MLP(4, 2 * hidden_dim, hidden_dim, num_layers=2)
 
-        # encoder head
+        # encoder head encoder 输出头（用来挑 top-K anchors）
         self.enc_output = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.LayerNorm(hidden_dim,)
@@ -352,7 +352,7 @@ class RTDETRTransformer(nn.Module):
         self.enc_score_head = nn.Linear(hidden_dim, num_classes)
         self.enc_bbox_head = MLP(hidden_dim, hidden_dim, 4, num_layers=3)
 
-        # decoder head
+        # decoder head decoder 每层的分类/回归头
         self.dec_score_head = nn.ModuleList([
             nn.Linear(hidden_dim, num_classes)
             for _ in range(num_decoder_layers)
